@@ -1,0 +1,31 @@
+version: 2
+jobs:
+  build:
+    working_directory: /go/src/github.com/e-commerce
+    docker:
+      - image: circleci/golang:1.10
+      - image: circleci/mysql:5.7
+        environment:
+          - MYSQL_DATABASE: e_commerce
+    steps:
+      - checkout
+      - run:
+          name: Downloading dep
+          command: go get -u github.com/golang/dep/cmd/dep
+      - run:
+          name: Installing dependencies with dep
+          command: dep ensure -vendor-only -v
+      - save_cache:
+          key: v1-pkg-cache
+          paths:
+            - "/go/pkg"
+      - run:
+          name: Building the binary
+          command: go build -v
+      - run:
+          name: Wait for db
+          command: |
+            dockerize -wait tcp://localhost:3306 -timeout 1m            
+      - run: make init_db
+      - run: go test -v -cover -race $(go list ./... | grep -v vendor/)
+  
